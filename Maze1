@@ -1,0 +1,285 @@
+using System;
+using System.Collections.Generic;
+
+class MazeGame
+{
+    private static int[,] maze;
+    private static int rows, cols;
+    private static Random random = new Random();
+
+    private static int playerX, playerY; // Позиция игрока
+    private static int finishX, finishY; // Позиция финиша
+
+    static void Main()
+    {
+        // Установим фон консоли
+        Console.BackgroundColor = ConsoleColor.DarkBlue;
+        Console.ForegroundColor = ConsoleColor.White;
+        Console.Clear();
+
+        Console.Write("Введите размер лабиринта (например, 10 для 10x10): ");
+        int size = int.Parse(Console.ReadLine());
+        rows = cols = size;
+
+        GenerateMaze();
+        PlacePlayerAndFinish();
+        Console.Clear();
+        PrintMaze();
+
+        PlayGame();
+    }
+
+    static void GenerateMaze()
+    {
+        maze = new int[rows, cols];
+
+        // Инициализация лабиринта
+        for (int i = 0; i < rows; i++)
+        {
+            for (int j = 0; j < cols; j++)
+            {
+                maze[i, j] = 1; // 1 - стена
+            }
+        }
+
+        // Генерация лабиринта с использованием Recursive Backtracking
+        Stack<(int, int)> stack = new Stack<(int, int)>();
+        int startX = random.Next(0, rows / 2) * 2;
+        int startY = random.Next(0, cols / 2) * 2;
+
+        maze[startX, startY] = 0; // 0 - путь
+        stack.Push((startX, startY));
+
+        while (stack.Count > 0)
+        {
+            var (x, y) = stack.Peek();
+            var neighbors = GetNeighbors(x, y);
+
+            if (neighbors.Count > 0)
+            {
+                var (nextX, nextY) = neighbors[random.Next(neighbors.Count)];
+
+                // Удаляем стену между текущей и следующей ячейкой
+                maze[(x + nextX) / 2, (y + nextY) / 2] = 0;
+                maze[nextX, nextY] = 0;
+
+                stack.Push((nextX, nextY));
+            }
+            else
+            {
+                stack.Pop();
+            }
+        }
+    }
+
+    static List<(int, int)> GetNeighbors(int x, int y)
+    {
+        var neighbors = new List<(int, int)>();
+
+        // Возможные направления: вверх, вниз, влево, вправо
+        var directions = new (int, int)[]
+        {
+            (-2, 0), (2, 0), (0, -2), (0, 2)
+        };
+
+        foreach (var (dx, dy) in directions)
+        {
+            int nx = x + dx, ny = y + dy;
+
+            if (nx >= 0 && nx < rows && ny >= 0 && ny < cols && maze[nx, ny] == 1)
+            {
+                neighbors.Add((nx, ny));
+            }
+        }
+
+        return neighbors;
+    }
+
+    static void PlacePlayerAndFinish()
+    {
+        // Размещение игрока в начальной точке
+        playerX = 0;
+        playerY = 0;
+
+        for (int i = 0; i < rows; i++)
+        {
+            for (int j = 0; j < cols; j++)
+            {
+                if (maze[i, j] == 0)
+                {
+                    playerX = i;
+                    playerY = j;
+                    break;
+                }
+            }
+        }
+
+        // Размещение финиша в самой удалённой от игрока точке
+        finishX = rows - 1;
+        finishY = cols - 1;
+
+        for (int i = rows - 1; i >= 0; i--)
+        {
+            for (int j = cols - 1; j >= 0; j--)
+            {
+                if (maze[i, j] == 0)
+                {
+                    finishX = i;
+                    finishY = j;
+                    return;
+                }
+            }
+        }
+    }
+
+    static void PlayGame()
+    {
+        ConsoleKey key;
+
+        Console.SetCursorPosition(0, rows + 1);
+        Console.WriteLine("Управление: Стрелки - движение, H - подсказка, Esc - выход.");
+
+        do
+        {
+            key = Console.ReadKey(true).Key;
+
+            int prevX = playerX;
+            int prevY = playerY;
+
+            if (key == ConsoleKey.H)
+            {
+                ShowHint();
+            }
+            else
+            {
+                MovePlayer(key);
+            }
+
+            if (playerX != prevX || playerY != prevY)
+            {
+                UpdatePosition(prevX, prevY);
+            }
+            if (playerX == finishX && playerY == finishY)
+            {
+                Console.SetCursorPosition(0, rows + 2);
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("\nПоздравляем! Вы достигли финиша! (^з^)-Chu!!");
+                return;
+            }
+
+        } while (key != ConsoleKey.Escape);
+    }
+
+    static void MovePlayer(ConsoleKey key)
+    {
+        int newX = playerX, newY = playerY;
+
+        switch (key)
+        {
+            case ConsoleKey.UpArrow:
+                newX--;
+                break;
+            case ConsoleKey.DownArrow:
+                newX++;
+                break;
+            case ConsoleKey.LeftArrow:
+                newY--;
+                break;
+            case ConsoleKey.RightArrow:
+                newY++;
+                break;
+        }
+
+        if (newX >= 0 && newX < rows && newY >= 0 && newY < cols && maze[newX, newY] == 0)
+        {
+            playerX = newX;
+            playerY = newY;
+        }
+    }
+
+    static void PrintMaze()
+    {
+        for (int i = 0; i < rows; i++)
+        {
+            for (int j = 0; j < cols; j++)
+            {
+                if (i == playerX && j == playerY)
+                {
+                    Console.ForegroundColor = ConsoleColor.Cyan; // Цвет игрока
+                    Console.Write(":)");
+                }
+                else if (i == finishX && j == finishY)
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow; // Цвет финиша
+                    Console.Write("(^０^)");
+                }
+                else if (maze[i, j] == 0)
+                {
+                    Console.ForegroundColor = ConsoleColor.DarkGray; // Цвет прохода
+                    Console.Write("  ");
+                }
+                else
+                {
+                    Console.ForegroundColor = ConsoleColor.Red; // Цвет стен
+                    Console.Write("██");
+                }
+            }
+            Console.WriteLine();
+        }
+    }
+
+    static void UpdatePosition(int prevX, int prevY)
+    {
+        Console.SetCursorPosition(prevY * 2, prevX);
+        Console.ForegroundColor = ConsoleColor.DarkGray;
+        Console.Write("  ");
+
+        Console.SetCursorPosition(playerY * 2, playerX);
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.Write(":)");
+
+        Console.SetCursorPosition(0, rows + 1);
+    }
+
+    static void ShowHint()
+    {
+        var path = FindPath(playerX, playerY, finishX, finishY);
+        foreach (var (x, y) in path)
+        {
+            Console.SetCursorPosition(y * 2, x);
+            Console.ForegroundColor = ConsoleColor.Green; // Подсказка
+            Console.Write("░░");
+        }
+    }
+
+    static List<(int, int)> FindPath(int startX, int startY, int endX, int endY)
+    {
+        var queue = new Queue<(int, int, List<(int, int)>)>();
+        queue.Enqueue((startX, startY, new List<(int, int)>() { (startX, startY) }));
+
+        var visited = new HashSet<(int, int)>();
+        visited.Add((startX, startY));
+
+        while (queue.Count > 0)
+        {
+            var (x, y, path) = queue.Dequeue();
+
+            if (x == endX && y == endY)
+                return path;
+
+            foreach (var (dx, dy) in new[] { (0, 1), (1, 0), (0, -1), (-1, 0) })
+            {
+                int nx = x + dx, ny = y + dy;
+
+                if (nx >= 0 && nx < rows && ny >= 0 && ny < cols && maze[nx, ny] == 0 && !visited.Contains((nx, ny)))
+                {
+                    visited.Add((nx, ny));
+                    var newPath = new List<(int, int)>(path) { (nx, ny) };
+                    queue.Enqueue((nx, ny, newPath));
+                }
+            }
+        }
+
+        return new List<(int, int)>();
+    }
+}
